@@ -931,7 +931,7 @@ function rebuildTzSelect() {
       `<option value="${abbr}">${abbr} (${fmtOff(tz.off)})</option>`);
   });
   if (prev && activeAbbrs.includes(prev)) sel.value = prev;
-  else if (activeAbbrs.includes('EDT')) sel.value = 'EDT';
+  else if (activeAbbrs.includes('UTC')) sel.value = 'UTC';
 }
 
 // ── CONVERT ───────────────────────────────────────────────────────────────────
