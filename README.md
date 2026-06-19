@@ -73,7 +73,7 @@ the server in to GHCR, so it can pull.)
 ## Project layout
 
 ```
-tz-scheduler/
+scheduler/
 ├── index.html          # the whole app
 ├── nginx.conf          # static-serving config (port 8080)
 ├── Dockerfile          # nginx-unprivileged, non-root
@@ -85,7 +85,7 @@ tz-scheduler/
     └── ingress.yaml    # Traefik ingress
 ```
 
-# 🌍 TZ Event Scheduler
+# 🌍 XZ. Event Scheduler
 
 A tiny self-hosted tool for scheduling client events across timezones. Enter a
 client-provided date/time/zone, convert it to **Sofia time** and **UTC**, and
@@ -160,7 +160,7 @@ the server in to GHCR, so it can pull.)
 ## Project layout
 
 ```
-tz-scheduler/
+scheduler/
 ├── index.html          # the whole app
 ├── nginx.conf          # static-serving config (port 8080)
 ├── Dockerfile          # nginx-unprivileged, non-root
