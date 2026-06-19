@@ -18,7 +18,7 @@ spec:
         - name: scheduler
           image: ghcr.io/xzackk/scheduler:latest
           ports:
-            - containerPort: 8080
+            - containerPort: 3005
           resources:
             requests:
               cpu: 10m
@@ -29,13 +29,13 @@ spec:
           readinessProbe:
             httpGet:
               path: /
-              port: 8080
+              port: 3005
             initialDelaySeconds: 3
             periodSeconds: 10
           livenessProbe:
             httpGet:
               path: /
-              port: 8080
+              port: 3005
             initialDelaySeconds: 5
             periodSeconds: 30
           securityContext:
@@ -57,4 +57,4 @@ spec:
   ports:
     - name: http
       port: 80
-      targetPort: 8080
+      targetPort: 3005

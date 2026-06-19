@@ -1,4 +1,4 @@
-# Unprivileged variant: listens on 8080, runs as uid 101 by default
+# Unprivileged variant: runs as uid 101; nginx.conf makes it listen on 3005
 FROM nginxinc/nginx-unprivileged:1.27-alpine
 
 # Static site — single self-contained HTML, no build step needed

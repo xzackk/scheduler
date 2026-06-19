@@ -11,9 +11,14 @@ Served as a static site behind nginx.
 
 - Date + time + timezone → **Sofia (EET/EEST)** and **UTC** conversion
 - Shows the hour/date difference, including day rollovers
-- Editable email templates with auto-filled maintenance window (UTC)
-- Manage the timezone dropdown (add/remove from ~70 zones), persisted in `localStorage`
-- Dark / light theme
+- Optional window end for scheduling windows, shown as a range
+- Editable email templates with copyable subject + auto-filled maintenance window
+- Any `{{token}}` in a template becomes an input field; fields can be links
+- Manage the timezone dropdown (add/remove from ~70 zones)
+- Dark / light theme — everything persists in `localStorage`
+
+> Templates, timezones and theme live in each user's **browser**, not on the
+> server, so internal links never reach this repo.
 
 ## Run locally (no Docker)
 
@@ -23,64 +28,68 @@ Just open `index.html` in a browser.
 
 ```bash
 docker build -t scheduler:latest .
-docker run --rm -p 8080:8080 scheduler:latest
-# open http://localhost:8080
+docker run --rm -p 3006:3005 scheduler:latest
+# open http://localhost:3006
 ```
 
-## Deploy to k3s
+nginx listens on **3005** inside the container.
 
-1. Build and push the image to your registry (e.g. GHCR):
+## Deploy with Docker Compose
 
-   ```bash
-   docker build -t ghcr.io/<you>/scheduler:latest .
-   docker push ghcr.io/<you>/scheduler:latest
-   ```
+`docker-compose.yml` runs the single nginx container and bind-mounts
+`index.html` / `nginx.conf` / favicon, so the content comes from the repo files
+(no rebuild needed to update — just `git pull`).
 
-2. Edit the placeholders:
-   - `k8s/deployment.yaml` → set the `image:`
-   - `k8s/ingress.yaml` → set the `host:` (and TLS, if used)
+```bash
+git clone https://github.com/<you>/scheduler.git
+cd scheduler
+cp .env.example .env      # optional: set IMAGE (defaults to GHCR)
+docker compose up -d
+# served on http://<host>:3006
+```
 
-3. Apply:
+**Update:** `git pull && docker compose restart` — nginx re-reads the
+bind-mounted `index.html` immediately.
 
-   ```bash
-   kubectl apply -f k8s/
-   ```
+The `wud.watch=true` label lets [WUD](https://github.com/getwud/wud) (or any
+image-update notifier you run) flag new base-image versions; it does not
+auto-update.
 
-k3s ships Traefik as the default ingress controller, so the included
-`ingress.yaml` works out of the box once the host is set.
+## Public access (Cloudflare Tunnel)
 
-## Deploy with Docker + Cloudflare Tunnel (recommended)
+Expose it through a Cloudflare Tunnel by adding a **public hostname** that points
+to the container — `http://scheduler:3005` if `cloudflared` shares the Docker
+network, or `http://<host>:3006` otherwise. No inbound ports need to be opened.
 
-Simplest path for a single static site. `docker-compose.yml` runs three
-containers: the app, a Cloudflare Tunnel (public access, no open ports), and
-Watchtower (auto-pulls a new image when GitHub Actions pushes `:latest`).
+## Deploy to k3s (alternative)
 
-1. In Cloudflare **Zero Trust → Networks → Tunnels**, create a tunnel, copy its
-   **token**, and add a **public hostname**: `scheduler.<your-domain>` →
-   `http://scheduler:8080`.
-2. On the server:
-   ```bash
-   git clone https://github.com/<you>/scheduler.git
-   cd scheduler
-   cp .env.example .env      # set IMAGE + TUNNEL_TOKEN
-   docker compose up -d
-   ```
+Manifests are in `k8s/` for running on an existing cluster.
 
-Updates are automatic: push to `main` → Actions builds & pushes to GHCR →
-Watchtower redeploys within ~2 min. (Make the GHCR package **public**, or log
-the server in to GHCR, so it can pull.)
+1. Set the image in `k8s/deployment.yaml` and the host in `k8s/ingress.yaml`.
+2. `kubectl apply -f k8s/`
+
+k3s ships Traefik as the default ingress controller, so `ingress.yaml` works out
+of the box once the host is set.
+
+## CI
+
+`.github/workflows/docker.yml` builds the image on every push to `main` and
+pushes it to `ghcr.io/<you>/scheduler:latest`.
 
 ## Project layout
 
 ```
 scheduler/
 ├── index.html          # the whole app
-├── nginx.conf          # static-serving config (port 8080)
+├── nginx.conf          # static-serving config (port 3005)
 ├── Dockerfile          # nginx-unprivileged, non-root
-├── docker-compose.yml  # app + cloudflared + watchtower
-├── .env.example        # IMAGE + TUNNEL_TOKEN
+├── docker-compose.yml  # single app container, bind-mounted content
+├── .env.example        # IMAGE override
 ├── .dockerignore
-└── k8s/
-    ├── deployment.yaml # Deployment + Service
-    └── ingress.yaml    # Traefik ingress
+├── .github/workflows/  # CI: build & push image to GHCR
+└── k8s/                # optional Kubernetes / k3s manifests
 ```
+
+## License
+
+MIT — see [LICENSE](LICENSE).
