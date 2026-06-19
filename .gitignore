@@ -1,7 +1,5 @@
-<<<<<<< HEAD
 .env
 *.local
-=======
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -183,4 +181,3 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
->>>>>>> 3c9ae6daf97c7c66675341145046a5eb7c6424e8

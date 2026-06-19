@@ -1,19 +1,10 @@
 services:
-<<<<<<< HEAD
   scheduler:
     image: ${IMAGE:-ghcr.io/CHANGE_ME/scheduler:latest}
     container_name: scheduler
     restart: unless-stopped
     ports:
       - "3005:8080"
-=======
-  tz-scheduler:
-    image: ${IMAGE:-ghcr.io/CHANGE_ME/tz-scheduler:latest}
-    container_name: scheduler
-    restart: unless-stopped
-    expose:
-      - "8080"
->>>>>>> 3c9ae6daf97c7c66675341145046a5eb7c6424e8
 
   # Cloudflare Tunnel — exposes the app at your subdomain, no open ports.
   cloudflared:
@@ -24,11 +15,7 @@ services:
     environment:
       - TUNNEL_TOKEN=${TUNNEL_TOKEN}
     depends_on:
-<<<<<<< HEAD
       - scheduler
-=======
-      - tz-scheduler
->>>>>>> 3c9ae6daf97c7c66675341145046a5eb7c6424e8
 
   # Auto-pulls a new image when GitHub Actions pushes :latest to GHCR.
   watchtower:
