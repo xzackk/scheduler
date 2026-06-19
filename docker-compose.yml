@@ -9,7 +9,7 @@ services:
   # Cloudflare Tunnel — exposes the app at your subdomain, no open ports.
   cloudflared:
     image: cloudflare/cloudflared:latest
-    container_name: tz-cloudflared
+    container_name: cloudflared
     restart: unless-stopped
     command: tunnel run
     environment:
@@ -20,7 +20,7 @@ services:
   # Auto-pulls a new image when GitHub Actions pushes :latest to GHCR.
   watchtower:
     image: containrrr/watchtower:latest
-    container_name: tz-watchtower
+    container_name: watchtower
     restart: unless-stopped
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
