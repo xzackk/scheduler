@@ -1,0 +1,1409 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TZ Event Scheduler</title>
+<style>
+:root { --t: 0.2s ease; }
+
+[data-theme="dark"] {
+  --bg:          #08161c;
+  --surface:     #122630;
+  --surface2:    #16323b;
+  --border:      #234048;
+  --text:        #e6f1f1;
+  --muted:       #88a6ac;
+  --accent:      #2fa3ad;
+  --accent-h:    #1c7c86;
+  --accent-fg:   #eafafa;
+  --btn:         #0e4651;
+  --btn-h:       #14606c;
+  --res-bg:      rgba(47,163,173,0.10);
+  --res-border:  #2fa3ad;
+  --sidebar-bg:  #07151b;
+  --shadow:      0 8px 32px rgba(0,0,0,0.5);
+  --header:      #102028;
+  --tag:         rgba(47,163,173,0.15);
+  --accent-glow: rgba(28,150,160,0.22);
+  --btn-outline: #3fd6b4;
+  --copy-ok:     #34d399;
+  --warn:        #f59e0b;
+  --grid:        rgba(120,190,190,0.14);
+  color-scheme: dark;
+}
+[data-theme="light"] {
+  --bg:          #dde4ec;
+  --surface:     #eef2f7;
+  --surface2:    #e2e8f1;
+  --border:      #c8d2df;
+  --text:        #14202e;
+  --muted:       #5c6b7e;
+  --accent:      #0e7d8a;
+  --accent-h:    #0a626d;
+  --accent-fg:   #ffffff;
+  --btn:         #0e7d8a;
+  --btn-h:       #0a626d;
+  --res-bg:      #d9eef0;
+  --res-border:  #0e7d8a;
+  --sidebar-bg:  #e2e8f1;
+  --shadow:      0 8px 32px rgba(20,50,55,0.14);
+  --header:      #eef2f7;
+  --tag:         #c7e8ec;
+  --accent-glow: rgba(14,125,138,0.14);
+  --btn-outline: #12a589;
+  --copy-ok:     #0c7d55;
+  --warn:        #d97706;
+  --grid:        rgba(60,100,105,0.16);
+  color-scheme: light;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  transition: background-color var(--t), color var(--t);
+}
+/* Light: subtle diamond grid */
+[data-theme="light"] body {
+  background-image:
+    linear-gradient(45deg,  var(--grid) 1px, transparent 1px),
+    linear-gradient(-45deg, var(--grid) 1px, transparent 1px);
+  background-size: 52px 52px;
+}
+/* Dark: starfield + teal nebula over a faint diamond grid */
+[data-theme="dark"] body {
+  background-image:
+    radial-gradient(1px 1px at 25% 25%, rgba(184,224,224,0.85) 50%, transparent 51%),
+    radial-gradient(1px 1px at 75% 65%, rgba(120,205,210,0.65) 50%, transparent 51%),
+    radial-gradient(1px 1px at 50% 90%, rgba(220,240,240,0.7) 50%, transparent 51%),
+    radial-gradient(950px 520px at 92% -6%, rgba(14,74,82,0.55) 0%, transparent 60%),
+    radial-gradient(820px 520px at 2% 106%, rgba(12,53,64,0.55) 0%, transparent 58%),
+    linear-gradient(45deg,  var(--grid) 1px, transparent 1px),
+    linear-gradient(-45deg, var(--grid) 1px, transparent 1px);
+  background-size: 90px 90px, 130px 130px, 170px 170px, 100% 100%, 100% 100%, 52px 52px, 52px 52px;
+  background-attachment: fixed, fixed, fixed, fixed, fixed, scroll, scroll;
+}
+
+/* ── HEADER ─────────────────────────────────────────────── */
+header {
+  position: sticky; top: 0; z-index: 100;
+  background: var(--header);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+  height: 58px;
+  display: flex; align-items: center; justify-content: space-between;
+  box-shadow: 0 1px 8px rgba(0,0,0,0.08);
+  transition: background var(--t), border-color var(--t);
+}
+.logo { font-size: 1.05rem; font-weight: 700; color: var(--accent); letter-spacing: -0.02em; display: flex; align-items: center; gap: 8px; }
+.logo span { font-size: 1.2em; }
+.logo-icon { width: 22px; height: 22px; flex-shrink: 0; }
+.hright { display: flex; gap: 8px; align-items: center; }
+
+/* ── BUTTONS ────────────────────────────────────────────── */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 14px; border-radius: 8px; border: 1px solid transparent;
+  cursor: pointer; font-size: 0.85rem; font-weight: 600;
+  transition: all var(--t); white-space: nowrap; font-family: inherit;
+}
+.btn-primary  { background: var(--btn); color: var(--accent-fg); border-color: var(--btn); }
+.btn-primary:hover  { background: var(--btn-h); border-color: var(--btn-outline); transform: translateY(-1px); box-shadow: 0 4px 14px var(--accent-glow); }
+.btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+.btn-secondary:hover { background: var(--btn); border-color: var(--btn-outline); color: var(--accent-fg); transform: translateY(-1px); box-shadow: 0 4px 14px var(--accent-glow); }
+.btn-glow:hover { box-shadow: 0 0 22px var(--accent-glow); }
+.btn-icon {
+  width: 36px; height: 36px; border-radius: 8px;
+  background: var(--surface2); border: 1px solid var(--border);
+  color: var(--text); cursor: pointer; font-size: 1rem;
+  display: flex; align-items: center; justify-content: center;
+  transition: all var(--t);
+}
+.btn-icon:hover { background: var(--border); }
+.btn-remove { background: none; border: none; color: #ef4444; cursor: pointer; padding: 4px 8px; border-radius: 6px; font-size: 0.8rem; transition: background var(--t); font-family: inherit; }
+.btn-remove:hover { background: rgba(239,68,68,0.1); }
+.btn-add-tz { background: none; border: none; color: var(--accent); cursor: pointer; padding: 4px 8px; border-radius: 6px; font-size: 0.8rem; transition: background var(--t); font-family: inherit; }
+.btn-add-tz:hover { background: var(--tag); }
+
+/* ── MAIN ───────────────────────────────────────────────── */
+main {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  padding: 20px;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+@media (max-width: 800px) { main { grid-template-columns: 1fr; } }
+
+/* ── PANEL ──────────────────────────────────────────────── */
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 24px;
+  transition: background var(--t), border-color var(--t);
+}
+.panel-title {
+  font-size: 0.95rem; font-weight: 700; margin-bottom: 20px;
+  display: flex; align-items: center; gap: 8px; color: var(--text);
+}
+
+/* ── FORM ───────────────────────────────────────────────── */
+.fg { margin-bottom: 14px; }
+.fg label {
+  display: block; font-size: 0.72rem; font-weight: 700;
+  color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px;
+}
+.time-row { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 8px; }
+.date-row { display: grid; grid-template-columns: 1.3fr 1.7fr 1.3fr; gap: 8px; }
+.opt-tag { font-size: 0.72rem; color: var(--muted); font-weight: 400; }
+
+/* Per-field link */
+.field-label { display: flex; align-items: center; justify-content: space-between; }
+.link-toggle {
+  background: none; border: none; cursor: pointer; font-size: 0.85rem;
+  opacity: 0.35; filter: grayscale(1); padding: 0 2px;
+  transition: all var(--t); line-height: 1;
+}
+.link-toggle:hover { opacity: 0.7; }
+.link-toggle.on { opacity: 1; filter: none; }
+.link-input { margin-top: 6px; font-size: 0.8rem !important; }
+.link-input.hidden { display: none; }
+
+/* Window end - always visible, grayed out until used */
+.end-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.end-clear {
+  font-size: 0.72rem; color: var(--muted); cursor: pointer;
+  padding: 2px 8px; border-radius: 6px; opacity: 0;
+  pointer-events: none; transition: all var(--t);
+}
+.end-clear:hover { color: #ef4444; background: rgba(239,68,68,0.1); }
+.end-clear.show { opacity: 1; pointer-events: auto; }
+
+.end-block {
+  cursor: pointer;
+  transition: opacity var(--t);
+}
+.end-block.inactive { opacity: 0.4; }
+.end-block.inactive:hover { opacity: 0.62; }
+.end-block.active { cursor: default; opacity: 1; }
+
+.end-align { align-items: center; }
+.end-spacer {
+  display: flex; align-items: center;
+  font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.05em; color: var(--muted);
+  padding-left: 2px;
+}
+.end-hint { font-size: 0.74rem; color: var(--muted); margin-top: 10px; }
+.res-section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent); margin: 14px 0 8px; }
+#endResult .res-section-label { margin-top: 16px; }
+
+select, input[type="date"], input[type="text"] {
+  width: 100%; padding: 9px 12px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 11px; color: var(--text); font-size: 0.875rem;
+  font-family: inherit;
+  transition: border-color var(--t), background var(--t);
+  appearance: auto;
+}
+select:focus, input:focus { outline: none; border-color: var(--accent); }
+
+/* ── RESULT ─────────────────────────────────────────────── */
+#resultArea { display: none; margin-top: 18px; }
+.result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.rcard {
+  background: var(--res-bg); border: 1.5px solid var(--res-border);
+  border-radius: 10px; padding: 14px 16px;
+  transition: background var(--t), border-color var(--t);
+}
+.rlabel { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--accent); margin-bottom: 5px; }
+.rvalue { font-size: 1.3rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1.2; }
+.rsub   { font-size: 0.78rem; color: var(--muted); margin-top: 3px; }
+.diff-bar {
+  margin-top: 12px; padding: 10px 14px;
+  background: var(--surface2); border-radius: 8px;
+  font-size: 0.82rem; color: var(--muted);
+  border: 1px solid var(--border);
+  display: flex; align-items: center; gap: 6px;
+  transition: background var(--t);
+}
+
+/* ── TEMPLATES ──────────────────────────────────────────── */
+.tmpl-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; margin-top: 14px; }
+.tmpl-fields:empty { margin-top: 0; }
+@media (max-width: 480px) { .tmpl-fields { grid-template-columns: 1fr; } }
+.subj-row { display: flex; align-items: center; gap: 8px; position: relative; }
+.subj-row #subjOut { flex: 1; }
+.subj-copy { white-space: nowrap; }
+#subjCopyOk { position: static; }
+.tmpl-out { margin-top: 14px; }
+textarea.tmpl-ta {
+  width: 100%; min-height: 260px;
+  padding: 14px; border-radius: 8px;
+  background: var(--surface2); border: 1px solid var(--border);
+  color: var(--text); font-family: 'Segoe UI', Consolas, monospace;
+  font-size: 0.85rem; line-height: 1.65; resize: vertical;
+  transition: border-color var(--t), background var(--t);
+}
+textarea.tmpl-ta:focus { outline: none; border-color: var(--accent); }
+.preview-out {
+  width: 100%; min-height: 260px; max-height: 460px; overflow-y: auto;
+  padding: 14px; border-radius: 8px;
+  background: var(--surface2); border: 1px solid var(--border);
+  color: var(--text); font-family: 'Segoe UI', Consolas, monospace;
+  font-size: 0.85rem; line-height: 1.65; white-space: pre-wrap; word-break: break-word;
+  transition: border-color var(--t), background var(--t);
+}
+.preview-out a {
+  color: var(--accent); text-decoration: underline;
+  text-underline-offset: 2px; font-weight: 600;
+}
+.preview-out a::after {
+  content: '🔗'; font-size: 0.72em; margin-left: 3px;
+  text-decoration: none; opacity: 0.8;
+}
+.copy-row { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-top: 10px; }
+.copy-ok { font-size: 0.8rem; color: var(--copy-ok); opacity: 0; transition: opacity 0.3s; pointer-events: none; }
+.copy-ok.show { opacity: 1; }
+.mw-note {
+  font-size: 0.75rem; color: var(--warn);
+  margin-top: 6px; display: none; align-items: center; gap: 4px;
+}
+.mw-note.show { display: flex; }
+
+/* ── SIDEBAR OVERLAY ────────────────────────────────────── */
+#overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.55);
+  z-index: 200; display: none; backdrop-filter: blur(2px);
+}
+#overlay.open { display: block; }
+
+/* ── SIDEBAR ────────────────────────────────────────────── */
+#sidebar {
+  position: fixed; top: 0; right: 0;
+  width: 420px; max-width: 100vw; height: 100vh;
+  background: var(--sidebar-bg); border-left: 1px solid var(--border);
+  z-index: 201; display: flex; flex-direction: column;
+  transform: translateX(100%); transition: transform 0.3s ease;
+  box-shadow: var(--shadow);
+}
+#sidebar.open { transform: translateX(0); }
+.sb-head {
+  padding: 18px 22px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0;
+}
+.sb-head h2 { font-size: 0.95rem; font-weight: 700; }
+.sb-body {
+  flex: 1; overflow-y: auto; padding: 20px 22px;
+  display: flex; flex-direction: column; gap: 20px;
+}
+.sb-section-title {
+  font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--muted); margin-bottom: 10px;
+  display: flex; align-items: center; gap: 8px;
+}
+.badge {
+  display: inline-flex; align-items: center;
+  padding: 1px 7px; border-radius: 20px;
+  font-size: 0.7rem; font-weight: 700;
+  background: var(--tag); color: var(--accent);
+}
+.tz-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 8px;
+  margin-bottom: 4px;
+  transition: background var(--t);
+}
+.tz-item:hover { background: var(--surface2); }
+.tz-info { flex: 1; min-width: 0; }
+.tz-abbr { font-weight: 700; font-size: 0.85rem; }
+.tz-name { font-size: 0.72rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tz-offset { font-size: 0.72rem; color: var(--muted); font-family: monospace; flex-shrink: 0; }
+.divider { height: 1px; background: var(--border); }
+.search-box {
+  width: 100%; padding: 9px 12px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; color: var(--text); font-size: 0.875rem;
+  font-family: inherit; margin-bottom: 10px;
+  transition: border-color var(--t);
+}
+.search-box:focus { outline: none; border-color: var(--accent); }
+.sb-hint { font-size: 0.75rem; color: var(--muted); padding: 10px; text-align: center; }
+
+/* ── TEMPLATE EDITOR MODAL ──────────────────────────────── */
+#tmplOverlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.55);
+  z-index: 300; display: none; backdrop-filter: blur(2px);
+}
+#tmplOverlay.open { display: block; }
+#tmplModal {
+  position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%) scale(0.97);
+  width: 880px; max-width: 95vw; height: 640px; max-height: 92vh;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 16px; z-index: 301; display: none; flex-direction: column;
+  box-shadow: var(--shadow); overflow: hidden;
+  opacity: 0; transition: opacity 0.2s ease, transform 0.2s ease;
+}
+#tmplModal.open { display: flex; opacity: 1; transform: translate(-50%,-50%) scale(1); }
+.tm-head {
+  padding: 16px 22px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+}
+.tm-head h2 { font-size: 0.95rem; font-weight: 700; }
+.tm-body { flex: 1; display: grid; grid-template-columns: 260px 1fr; min-height: 0; }
+.tm-list-col {
+  border-right: 1px solid var(--border); padding: 16px;
+  overflow-y: auto; background: var(--sidebar-bg);
+}
+.tm-edit-col { padding: 20px 22px; overflow-y: auto; }
+.tmpl-list-item {
+  padding: 10px 12px; border-radius: 8px; cursor: pointer;
+  border: 1px solid var(--border); background: var(--surface);
+  margin-bottom: 6px; font-size: 0.85rem; font-weight: 500;
+  transition: all var(--t);
+}
+.tmpl-list-item:hover { background: var(--surface2); }
+.tmpl-list-item.active { border-color: var(--accent); background: var(--res-bg); color: var(--accent); }
+.tm-actions { display: flex; align-items: center; gap: 10px; margin-top: 16px; }
+.token-help { margin-top: 12px; padding: 12px; background: var(--surface2); border-radius: 8px; border: 1px solid var(--border); }
+.token-help-title { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 8px; }
+.token-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 9px; border-radius: 20px; cursor: pointer;
+  background: var(--surface); border: 1px solid var(--border);
+  color: var(--muted); font-size: 0.72rem; font-family: inherit;
+  transition: all var(--t);
+}
+.chip:hover { border-color: var(--accent); color: var(--accent); }
+.chip code { font-family: Consolas, monospace; color: var(--accent); font-size: 0.72rem; }
+.token-detected { margin-top: 10px; font-size: 0.74rem; color: var(--muted); }
+.token-detected b { color: var(--text); }
+.token-detected .fldtok { color: var(--accent); font-family: monospace; }
+
+/* ── SCROLLBAR ──────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- Overlay -->
+<div id="overlay" onclick="closeSidebar()"></div>
+
+<!-- Header -->
+<header>
+  <div class="logo">
+    <svg class="logo-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="12" r="5" fill="currentColor"/>
+      <ellipse cx="12" cy="12" rx="10.5" ry="4" stroke="currentColor" stroke-width="1.4"
+               transform="rotate(-25 12 12)"/>
+      <circle cx="21.2" cy="8.6" r="1.25" fill="currentColor"/>
+    </svg>
+    XZ. Event Scheduler
+  </div>
+  <div class="hright">
+    <button class="btn btn-secondary" onclick="openTmplEditor()">📝 Templates</button>
+    <button class="btn btn-secondary" onclick="openSidebar()">⚙ Timezones</button>
+    <button class="btn-icon" id="themeBtn" onclick="toggleTheme()" title="Toggle theme">🌖</button>
+  </div>
+</header>
+
+<!-- Main -->
+<main>
+
+  <!-- LEFT: Converter -->
+  <div class="panel">
+    <div class="panel-title">🕐 Time Converter</div>
+
+    <div class="fg">
+      <label>Date</label>
+      <div class="date-row">
+        <select id="daySel"></select>
+        <select id="monthSel" onchange="rebuildDays()"></select>
+        <select id="yearSel" onchange="rebuildDays()"></select>
+      </div>
+    </div>
+
+    <div class="fg">
+      <label>Time &amp; Timezone (window start)</label>
+      <div class="time-row">
+        <select id="tzSel"></select>
+        <select id="hourSel"></select>
+        <select id="minSel"></select>
+        <select id="periodSel">
+          <option value="AM">AM</option>
+          <option value="PM" selected>PM</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="fg">
+      <div class="end-head">
+        <label style="margin-bottom:0;">Window end</label>
+        <span class="end-clear" id="endClear" onclick="clearEnd()">✕ clear</span>
+      </div>
+      <div id="endFields" class="end-block inactive" onclick="activateEnd()">
+        <div class="time-row end-align">
+          <div class="end-spacer">end</div>
+          <select id="endHourSel" onchange="activateEnd()"></select>
+          <select id="endMinSel" onchange="activateEnd()"></select>
+          <select id="endPeriodSel" onchange="activateEnd()">
+            <option value="AM">AM</option>
+            <option value="PM" selected>PM</option>
+          </select>
+        </div>
+        <div class="end-hint" id="endHint">No end time set - click to add a scheduling window.</div>
+      </div>
+    </div>
+
+    <button class="btn btn-primary btn-glow" style="width:100%;justify-content:center;padding:11px;" onclick="convert()">
+      ⚡ Convert to Sofia Time
+    </button>
+
+    <div id="resultArea">
+      <div class="res-section-label" id="startSecLabel" style="display:none;">▶ Window start</div>
+      <div class="result-grid">
+        <div class="rcard">
+          <div class="rlabel">📅 Sofia (EET/EEST)</div>
+          <div class="rvalue" id="sofiaTime">-</div>
+          <div class="rsub" id="sofiaDate">-</div>
+        </div>
+        <div class="rcard">
+          <div class="rlabel">🌐 UTC</div>
+          <div class="rvalue" id="utcTime">-</div>
+          <div class="rsub" id="utcDate">-</div>
+        </div>
+      </div>
+
+      <div id="endResult" style="display:none;">
+        <div class="res-section-label">⏹ Window end</div>
+        <div class="result-grid">
+          <div class="rcard">
+            <div class="rlabel">📅 Sofia (EET/EEST)</div>
+            <div class="rvalue" id="sofiaTimeEnd">-</div>
+            <div class="rsub" id="sofiaDateEnd">-</div>
+          </div>
+          <div class="rcard">
+            <div class="rlabel">🌐 UTC</div>
+            <div class="rvalue" id="utcTimeEnd">-</div>
+            <div class="rsub" id="utcDateEnd">-</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="diff-bar" id="diffBar">-</div>
+      <div class="diff-bar" id="durBar" style="display:none;">-</div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Templates -->
+  <div class="panel">
+    <div class="panel-title">📧 Email Template</div>
+
+    <div class="fg">
+      <label>Select Template</label>
+      <select id="tmplSel" onchange="loadTemplate()"></select>
+    </div>
+
+    <div class="fg" id="subjectRow" style="display:none;">
+      <label>Subject <span class="opt-tag">event name</span></label>
+      <div class="subj-row">
+        <input type="text" id="subjOut" readonly>
+        <span class="copy-ok" id="subjCopyOk">✓</span>
+        <button class="btn btn-primary subj-copy" onclick="copySubject()" title="Copy subject">📋 Copy</button>
+      </div>
+    </div>
+
+    <div class="tmpl-fields" id="tmplFields"></div>
+
+    <div class="mw-note" id="mwNote">⚠ Convert a time first to auto-fill the maintenance window.</div>
+
+    <div class="tmpl-out">
+      <div class="preview-out" id="tmplOut"></div>
+      <div class="copy-row">
+        <span class="copy-ok" id="copyOk">✓ Copied to clipboard!</span>
+        <button class="btn btn-primary" onclick="copyTmpl()">📋 Copy</button>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- Sidebar -->
+<aside id="sidebar">
+  <div class="sb-head">
+    <h2>⚙ Manage Timezones</h2>
+    <button class="btn-icon" onclick="closeSidebar()">✕</button>
+  </div>
+  <div class="sb-body">
+    <div>
+      <div class="sb-section-title">Active in dropdown <span class="badge" id="activeBadge">0</span></div>
+      <div id="activeTzList"></div>
+    </div>
+    <div class="divider"></div>
+    <div>
+      <div class="sb-section-title">All Timezones - click + to add</div>
+      <input class="search-box" type="text" id="tzSearch" placeholder="Search by name or abbreviation…" oninput="filterAll()">
+      <div id="allTzList"></div>
+    </div>
+  </div>
+</aside>
+
+<!-- Template editor modal -->
+<div id="tmplOverlay" onclick="closeTmplEditor()"></div>
+<div id="tmplModal">
+  <div class="tm-head">
+    <h2>📝 Manage Templates</h2>
+    <button class="btn-icon" onclick="closeTmplEditor()">✕</button>
+  </div>
+  <div class="tm-body">
+    <!-- Left: list -->
+    <div class="tm-list-col">
+      <button class="btn btn-primary" style="width:100%;justify-content:center;margin-bottom:10px;" onclick="newTemplate()">＋ New template</button>
+      <div id="tmplList"></div>
+    </div>
+    <!-- Right: editor -->
+    <div class="tm-edit-col">
+      <div id="tmplEditForm" style="display:none;">
+        <div class="fg">
+          <label>Template name</label>
+          <input type="text" id="edName" placeholder="e.g. Reboot notification">
+        </div>
+        <div class="fg">
+          <label>Subject <span class="opt-tag">event name - optional, supports tokens</span></label>
+          <input type="text" id="edSubject" placeholder="e.g. Increase child elements - {{tenant}} - {{ticket}}" oninput="updateTokenChips()">
+        </div>
+        <div class="fg">
+          <label>Body</label>
+          <textarea class="tmpl-ta" id="edBody" style="min-height:260px;" oninput="updateTokenChips()"></textarea>
+        </div>
+        <div class="token-help">
+          <div class="token-help-title">Tokens - type them in the body:</div>
+          <div class="token-chips">
+            <button class="chip" onclick="insertToken('window')"><code>{{window}}</code> full maintenance window</button>
+            <button class="chip" onclick="insertToken('window_start')"><code>{{window_start}}</code> start only</button>
+            <button class="chip" onclick="insertToken('window_end')"><code>{{window_end}}</code> end only</button>
+          </div>
+          <div class="token-detected" id="tokenDetected"></div>
+        </div>
+        <div class="tm-actions">
+          <button class="btn-remove" id="edDeleteBtn" onclick="deleteTemplate()">🗑 Delete</button>
+          <div style="flex:1"></div>
+          <span class="copy-ok" id="saveOk">✓ Saved!</span>
+          <button class="btn btn-primary" onclick="saveTemplate()">💾 Save</button>
+        </div>
+      </div>
+      <div id="tmplEditEmpty" class="sb-hint" style="padding:40px 20px;">
+        Select a template on the left to edit, or create a new one.
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── TIMEZONE REGISTRY ─────────────────────────────────────────────────────────
+const ALL_TZ = [
+  { abbr:'UTC',    name:'Coordinated Universal Time',           off:0 },
+  { abbr:'GMT',    name:'Greenwich Mean Time',                  off:0 },
+  { abbr:'WET',    name:'Western European Time',                off:0 },
+  { abbr:'WEST',   name:'Western European Summer Time',         off:60 },
+  { abbr:'BST',    name:'British Summer Time',                  off:60 },
+  { abbr:'IST_IE', name:'Irish Standard Time',                  off:60 },
+  { abbr:'EST',    name:'Eastern Standard Time (US)',           off:-300 },
+  { abbr:'EDT',    name:'Eastern Daylight Time (US)',           off:-240 },
+  { abbr:'CST',    name:'Central Standard Time (US)',           off:-360 },
+  { abbr:'CDT',    name:'Central Daylight Time (US)',           off:-300 },
+  { abbr:'MST',    name:'Mountain Standard Time (US)',          off:-420 },
+  { abbr:'MDT',    name:'Mountain Daylight Time (US)',          off:-360 },
+  { abbr:'PST',    name:'Pacific Standard Time (US)',           off:-480 },
+  { abbr:'PDT',    name:'Pacific Daylight Time (US)',           off:-420 },
+  { abbr:'AKST',   name:'Alaska Standard Time',                 off:-540 },
+  { abbr:'AKDT',   name:'Alaska Daylight Time',                 off:-480 },
+  { abbr:'HST',    name:'Hawaii Standard Time',                 off:-600 },
+  { abbr:'HAST',   name:'Hawaii-Aleutian Standard Time',        off:-600 },
+  { abbr:'NST',    name:'Newfoundland Standard Time',           off:-210 },
+  { abbr:'NDT',    name:'Newfoundland Daylight Time',           off:-150 },
+  { abbr:'AST',    name:'Atlantic Standard Time',               off:-240 },
+  { abbr:'ADT',    name:'Atlantic Daylight Time',               off:-180 },
+  { abbr:'BRT',    name:'Brasilia Time',                        off:-180 },
+  { abbr:'ART',    name:'Argentina Time',                       off:-180 },
+  { abbr:'PET',    name:'Peru Time',                            off:-300 },
+  { abbr:'COT',    name:'Colombia Time',                        off:-300 },
+  { abbr:'VET',    name:'Venezuela Time',                       off:-240 },
+  { abbr:'CLT',    name:'Chile Standard Time',                  off:-240 },
+  { abbr:'CLST',   name:'Chile Summer Time',                    off:-180 },
+  { abbr:'BOT',    name:'Bolivia Time',                         off:-240 },
+  { abbr:'PYT',    name:'Paraguay Time',                        off:-240 },
+  { abbr:'GYT',    name:'Guyana Time',                          off:-240 },
+  { abbr:'SRT',    name:'Suriname Time',                        off:-180 },
+  { abbr:'UYT',    name:'Uruguay Time',                         off:-180 },
+  { abbr:'ECT',    name:'Ecuador Time',                         off:-300 },
+  { abbr:'CAT',    name:'Central Africa Time',                  off:120 },
+  { abbr:'EAT',    name:'East Africa Time',                     off:180 },
+  { abbr:'WAT',    name:'West Africa Time',                     off:60 },
+  { abbr:'CET',    name:'Central European Time',                off:60 },
+  { abbr:'CEST',   name:'Central European Summer Time',         off:120 },
+  { abbr:'EET',    name:'Eastern European Time',                off:120 },
+  { abbr:'EEST',   name:'Eastern European Summer Time',         off:180 },
+  { abbr:'MSK',    name:'Moscow Standard Time',                 off:180 },
+  { abbr:'TRT',    name:'Turkey Time',                          off:180 },
+  { abbr:'SAMT',   name:'Samara Time',                          off:240 },
+  { abbr:'GET',    name:'Georgia Standard Time',                off:240 },
+  { abbr:'AZT',    name:'Azerbaijan Time',                      off:240 },
+  { abbr:'AMT',    name:'Armenia Time',                         off:240 },
+  { abbr:'GST',    name:'Gulf Standard Time',                   off:240 },
+  { abbr:'IRST',   name:'Iran Standard Time',                   off:210 },
+  { abbr:'IRDT',   name:'Iran Daylight Time',                   off:270 },
+  { abbr:'PKT',    name:'Pakistan Standard Time',               off:300 },
+  { abbr:'UZT',    name:'Uzbekistan Time',                      off:300 },
+  { abbr:'YEKT',   name:'Yekaterinburg Time',                   off:300 },
+  { abbr:'IST',    name:'India Standard Time',                  off:330 },
+  { abbr:'NPT',    name:'Nepal Time',                           off:345 },
+  { abbr:'BST_BD', name:'Bangladesh Standard Time',             off:360 },
+  { abbr:'OMST',   name:'Omsk Time',                            off:360 },
+  { abbr:'MMT',    name:'Myanmar Time',                         off:390 },
+  { abbr:'WIB',    name:'Western Indonesia Time (Jakarta)',      off:420 },
+  { abbr:'ICT',    name:'Indochina Time (TH/VN/KH)',            off:420 },
+  { abbr:'NOVT',   name:'Novosibirsk Time',                     off:420 },
+  { abbr:'CST_CN', name:'China Standard Time',                  off:480 },
+  { abbr:'HKT',    name:'Hong Kong Time',                       off:480 },
+  { abbr:'SGT',    name:'Singapore Time',                       off:480 },
+  { abbr:'MYT',    name:'Malaysia Time',                        off:480 },
+  { abbr:'PHT',    name:'Philippine Time',                      off:480 },
+  { abbr:'AWST',   name:'Australian Western Standard Time',     off:480 },
+  { abbr:'IRKT',   name:'Irkutsk Time',                         off:480 },
+  { abbr:'JST',    name:'Japan Standard Time',                  off:540 },
+  { abbr:'KST',    name:'Korea Standard Time',                  off:540 },
+  { abbr:'WIT',    name:'Eastern Indonesia Time',               off:540 },
+  { abbr:'YAKT',   name:'Yakutsk Time',                         off:540 },
+  { abbr:'ACST',   name:'Australian Central Standard Time',     off:570 },
+  { abbr:'ACDT',   name:'Australian Central Daylight Time',     off:630 },
+  { abbr:'AEST',   name:'Australian Eastern Standard Time',     off:600 },
+  { abbr:'VLAT',   name:'Vladivostok Time',                     off:600 },
+  { abbr:'AEDT',   name:'Australian Eastern Daylight Time',     off:660 },
+  { abbr:'MAGT',   name:'Magadan Time',                         off:660 },
+  { abbr:'NZST',   name:'New Zealand Standard Time',            off:720 },
+  { abbr:'PETT',   name:'Kamchatka Time',                       off:720 },
+  { abbr:'NZDT',   name:'New Zealand Daylight Time',            off:780 },
+];
+
+const DEFAULT_ACTIVE = ['UTC','GMT','EDT','EST','CDT','CST','MDT','MST','PDT','PST','CET','CEST','IST','JST'];
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let activeAbbrs = [...DEFAULT_ACTIVE];
+let lastUTC     = null;
+let lastUTCend  = null;
+
+// ── TEMPLATES ─────────────────────────────────────────────────────────────────
+// Data-driven. Body text supports tokens:
+//   {{window}}        → full maintenance window (range if an end is set)
+//   {{window_start}}  → start moment only
+//   {{window_end}}    → end moment only (blank if no end)
+// Any other {{token}} automatically becomes an editable input field.
+const RESERVED_TOKENS = ['window', 'window_start', 'window_end'];
+
+const DEFAULT_TEMPLATES = [
+  {
+    id: 'increase_child',
+    label: 'Email template',
+    subject: 'Increase child elements - {{tenant}} - {{ticket}}',
+    body:
+`Dear colleagues,
+
+Please proceed with increasing the child elements:
+
+Tenant: {{tenant}}
+
+Ticket: {{ticket}}
+
+Maintenance window: {{window}}
+
+Kindly update the customer in the ticket.
+
+Note: Please check the ticket before proceeding with the any activity.
+
+Best Regards,`
+  },
+];
+
+let TEMPLATES = [];      // working copy (loaded from storage or defaults)
+const fieldVals = {};
+const fieldLinks = {};   // token -> URL (makes the field text a hyperlink on copy)
+let lastTmplHtml = '';   // HTML version of the output, for rich clipboard copy
+let lastTmplText = '';   // clean plain-text version, for the clipboard
+let editingId = null;    // template currently open in the editor
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+function init() {
+  // Date dropdowns default = today
+  const now = new Date();
+  const pad = n => String(n).padStart(2,'0');
+
+  const MONTH_NAMES = ['January','February','March','April','May','June',
+                       'July','August','September','October','November','December'];
+  const monthSel = document.getElementById('monthSel');
+  MONTH_NAMES.forEach((nm, i) =>
+    monthSel.insertAdjacentHTML('beforeend', `<option value="${i+1}">${nm}</option>`));
+  monthSel.value = now.getMonth() + 1;
+
+  const yearSel = document.getElementById('yearSel');
+  const yNow = now.getFullYear();
+  for (let y = yNow - 1; y <= yNow + 3; y++)
+    yearSel.insertAdjacentHTML('beforeend', `<option value="${y}">${y}</option>`);
+  yearSel.value = yNow;
+
+  // Build the day dropdown for the current month/year (with weekday labels)
+  rebuildDays(now.getDate());
+
+  // Hours 1-12
+  const hs = document.getElementById('hourSel');
+  for (let h = 1; h <= 12; h++)
+    hs.insertAdjacentHTML('beforeend', `<option value="${h}">${pad(h)}</option>`);
+  hs.value = '7';
+
+  // Minutes 00-59
+  const ms = document.getElementById('minSel');
+  for (let m = 0; m < 60; m++)
+    ms.insertAdjacentHTML('beforeend', `<option value="${m}">${pad(m)}</option>`);
+
+  // ── Window-end time dropdowns (optional; same date as start) ──
+  const eh = document.getElementById('endHourSel');
+  for (let h = 1; h <= 12; h++)
+    eh.insertAdjacentHTML('beforeend', `<option value="${h}">${pad(h)}</option>`);
+  eh.value = '11';
+
+  const em = document.getElementById('endMinSel');
+  for (let m = 0; m < 60; m++)
+    em.insertAdjacentHTML('beforeend', `<option value="${m}">${pad(m)}</option>`);
+
+  // Templates
+  loadTemplatesFromStore();
+  rebuildTmplSelect();
+
+  loadPrefs();
+  rebuildTzSelect();
+  renderSidebar();
+  loadTemplate();
+
+  const theme = localStorage.getItem('tz_theme') || 'dark';
+  applyTheme(theme);
+}
+
+// ── DAY DROPDOWN (real calendar + weekday) ────────────────────────────────────
+const WD_SHORT = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+function rebuildDays(keepDay) {
+  const daySel = document.getElementById('daySel');
+  const mo = parseInt(document.getElementById('monthSel').value);
+  const y  = parseInt(document.getElementById('yearSel').value);
+  const prev = keepDay || parseInt(daySel.value) || 1;
+
+  const daysInMonth = new Date(y, mo, 0).getDate(); // day 0 of next month = last day
+  const pad = n => String(n).padStart(2,'0');
+
+  daySel.innerHTML = '';
+  for (let d = 1; d <= daysInMonth; d++) {
+    const wd = WD_SHORT[new Date(y, mo-1, d).getDay()];
+    daySel.insertAdjacentHTML('beforeend', `<option value="${d}">${pad(d)} · ${wd}</option>`);
+  }
+  daySel.value = Math.min(prev, daysInMonth);
+}
+
+function activateEnd() {
+  const block = document.getElementById('endFields');
+  if (block.classList.contains('active')) return;
+  block.classList.remove('inactive');
+  block.classList.add('active');
+  document.getElementById('endClear').classList.add('show');
+  document.getElementById('endTzEcho').textContent = document.getElementById('tzSel').value;
+  document.getElementById('endHint').textContent =
+    'Uses the same date & timezone as the start (' + document.getElementById('tzSel').value + ').';
+}
+function clearEnd() {
+  const block = document.getElementById('endFields');
+  block.classList.remove('active');
+  block.classList.add('inactive');
+  document.getElementById('endClear').classList.remove('show');
+  document.getElementById('endHint').textContent =
+    'No end time set - click to add a scheduling window.';
+  lastUTCend = null;
+  if (lastUTC) convert();   // refresh result + template without the end
+}
+function endIsActive() { return document.getElementById('endFields').classList.contains('active'); }
+
+// ── TZ SELECT ─────────────────────────────────────────────────────────────────
+function rebuildTzSelect() {
+  const sel = document.getElementById('tzSel');
+  const prev = sel.value;
+  sel.innerHTML = '';
+  activeAbbrs.forEach(abbr => {
+    const tz = ALL_TZ.find(t => t.abbr === abbr);
+    if (!tz) return;
+    sel.insertAdjacentHTML('beforeend',
+      `<option value="${abbr}">${abbr} (${fmtOff(tz.off)})</option>`);
+  });
+  if (prev && activeAbbrs.includes(prev)) sel.value = prev;
+  else if (activeAbbrs.includes('EDT')) sel.value = 'EDT';
+}
+
+// ── CONVERT ───────────────────────────────────────────────────────────────────
+function convert() {
+  const d  = parseInt(document.getElementById('daySel').value);
+  const mo = parseInt(document.getElementById('monthSel').value);
+  const y  = parseInt(document.getElementById('yearSel').value);
+
+  let hour = parseInt(document.getElementById('hourSel').value);
+  const min  = parseInt(document.getElementById('minSel').value);
+  const per  = document.getElementById('periodSel').value;
+  const abbr = document.getElementById('tzSel').value;
+
+  // 12h → 24h
+  if (per === 'AM' && hour === 12) hour = 0;
+  if (per === 'PM' && hour !== 12) hour += 12;
+
+  const tz = ALL_TZ.find(t => t.abbr === abbr);
+  if (!tz) return;
+
+  // UTC ms = "local" clock treated as that tz's offset
+  const localMs = Date.UTC(y, mo-1, d, hour, min, 0, 0);
+  const utcMs   = localMs - tz.off * 60_000;
+  const utcDate = new Date(utcMs);
+  lastUTC = utcDate;
+
+  // Sofia via Intl
+  const sofia = fmtInTz(utcDate, 'Europe/Sofia');
+  const utc   = fmtUTC(utcDate);
+
+  // Diff text
+  const sofiaOff = getSofiaOff(utcDate);
+  const diffMin  = sofiaOff - tz.off;
+  const absDiff  = Math.abs(diffMin);
+  const dh = Math.floor(absDiff/60);
+  const dm = absDiff % 60;
+  const dStr = `${dh}h${dm ? ' '+dm+'m' : ''}`;
+  const dir = diffMin >= 0 ? 'ahead of' : 'behind';
+  document.getElementById('diffBar').textContent = `⏱ Sofia is ${dStr} ${dir} ${abbr}`;
+
+  document.getElementById('sofiaTime').textContent = sofia.time;
+  document.getElementById('sofiaDate').textContent = sofia.weekday + ', ' + sofia.date;
+  document.getElementById('utcTime').textContent   = utc.time;
+  document.getElementById('utcDate').textContent   = utc.weekday + ', ' + utc.date;
+  document.getElementById('resultArea').style.display = 'block';
+
+  // ── Optional window end (same timezone as start) ──
+  const endOn = endIsActive();
+  const endResult = document.getElementById('endResult');
+  const durBar    = document.getElementById('durBar');
+  const startLbl  = document.getElementById('startSecLabel');
+
+  if (endOn) {
+    let ehour = parseInt(document.getElementById('endHourSel').value);
+    const emin = parseInt(document.getElementById('endMinSel').value);
+    const eper = document.getElementById('endPeriodSel').value;
+    if (eper === 'AM' && ehour === 12) ehour = 0;
+    if (eper === 'PM' && ehour !== 12) ehour += 12;
+
+    // Same calendar date as the start; if the end clock is earlier, roll to next day
+    let endUtcDate = new Date(Date.UTC(y, mo-1, d, ehour, emin) - tz.off * 60_000);
+    let rolledOver = false;
+    if (endUtcDate <= utcDate) {
+      endUtcDate = new Date(endUtcDate.getTime() + 24*60*60*1000);
+      rolledOver = true;
+    }
+    lastUTCend = endUtcDate;
+
+    const sofiaE = fmtInTz(endUtcDate, 'Europe/Sofia');
+    const utcE   = fmtUTC(endUtcDate);
+    document.getElementById('sofiaTimeEnd').textContent = sofiaE.time;
+    document.getElementById('sofiaDateEnd').textContent = sofiaE.weekday + ', ' + sofiaE.date;
+    document.getElementById('utcTimeEnd').textContent   = utcE.time;
+    document.getElementById('utcDateEnd').textContent   = utcE.weekday + ', ' + utcE.date;
+
+    // Window duration
+    const durMin = Math.round((endUtcDate - utcDate) / 60_000);
+    if (durMin <= 0) {
+      durBar.textContent = '⚠ Window end is not after the start - check the dates/times.';
+    } else {
+      const ph = Math.floor(durMin/60), pm = durMin % 60;
+      durBar.textContent = `🪟 Window length: ${ph}h${pm ? ' '+pm+'m' : ''}${rolledOver ? '  ·  ⏭ ends next day (+1)' : ''}`;
+    }
+    endResult.style.display = 'block';
+    durBar.style.display = 'flex';
+    startLbl.style.display = 'block';
+  } else {
+    lastUTCend = null;
+    endResult.style.display = 'none';
+    durBar.style.display = 'none';
+    startLbl.style.display = 'none';
+  }
+
+  document.getElementById('mwNote').classList.remove('show');
+  renderTemplate();
+}
+
+function getSofiaOff(utcDate) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone:'Europe/Sofia', hour12:false,
+    year:'numeric', month:'2-digit', day:'2-digit',
+    hour:'2-digit', minute:'2-digit', second:'2-digit'
+  }).formatToParts(utcDate);
+  const g = type => parseInt(parts.find(p=>p.type===type)?.value||'0');
+  let h = g('hour'); if (h===24) h=0;
+  const sofiaMs = Date.UTC(g('year'), g('month')-1, g('day'), h, g('minute'), g('second'));
+  return Math.round((sofiaMs - utcDate.getTime()) / 60_000);
+}
+
+// 24h -> 12h AM/PM, e.g. (15, 5) -> "3:05 PM"
+function to12h(h, m) {
+  const per = h < 12 ? 'AM' : 'PM';
+  let hh = h % 12; if (hh === 0) hh = 12;
+  return `${hh}:${String(m).padStart(2,'0')} ${per}`;
+}
+
+function fmtInTz(utcDate, tz) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone:tz, hour12:false,
+    year:'numeric', month:'long', day:'numeric',
+    hour:'2-digit', minute:'2-digit', weekday:'long'
+  }).formatToParts(utcDate);
+  const g = t => parts.find(p=>p.type===t)?.value||'';
+  let h = parseInt(g('hour')); if (h === 24) h = 0;
+  return { time:to12h(h, parseInt(g('minute'))), date:`${g('month')} ${g('day')}, ${g('year')}`, weekday:g('weekday') };
+}
+
+function fmtUTC(utcDate) {
+  const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const DAYS   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  return {
+    time:    `${to12h(utcDate.getUTCHours(), utcDate.getUTCMinutes())} UTC`,
+    date:    `${MONTHS[utcDate.getUTCMonth()]} ${utcDate.getUTCDate()}, ${utcDate.getUTCFullYear()}`,
+    weekday: DAYS[utcDate.getUTCDay()]
+  };
+}
+
+// ── TEMPLATE STORAGE ──────────────────────────────────────────────────────────
+function loadTemplatesFromStore() {
+  const s = localStorage.getItem('tz_templates');
+  if (s) {
+    try { TEMPLATES = JSON.parse(s); }
+    catch { TEMPLATES = structuredClone(DEFAULT_TEMPLATES); }
+  } else {
+    TEMPLATES = structuredClone(DEFAULT_TEMPLATES);
+  }
+}
+function saveTemplatesToStore() {
+  localStorage.setItem('tz_templates', JSON.stringify(TEMPLATES));
+}
+function findTemplate(id) { return TEMPLATES.find(t => t.id === id); }
+
+function rebuildTmplSelect() {
+  const ts = document.getElementById('tmplSel');
+  const prev = ts.value;
+  ts.innerHTML = '';
+  TEMPLATES.forEach(t =>
+    ts.insertAdjacentHTML('beforeend', `<option value="${t.id}">${esc(t.label)}</option>`));
+  if (prev && findTemplate(prev)) ts.value = prev;
+}
+
+// Tokens like {{tenant}} that aren't reserved become input fields.
+function extractFieldTokens(body) {
+  const found = [];
+  const re = /\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g;
+  let m;
+  while ((m = re.exec(body)) !== null) {
+    const tok = m[1];
+    if (!RESERVED_TOKENS.includes(tok) && !found.includes(tok)) found.push(tok);
+  }
+  return found;
+}
+
+function prettyLabel(tok) {
+  return tok.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+// Combined text (subject + body) so tokens in either create input fields.
+function tmplText(tmpl) {
+  return (tmpl.subject ? tmpl.subject + '\n' : '') + (tmpl.body || '');
+}
+
+// Replace window + field tokens in a plain string (used for the subject line).
+function fillPlain(str, tokens) {
+  const w = windowStrings();
+  let out = (str || '')
+    .replace(/\{\{\s*window_start\s*\}\}/g, w.start || '[WINDOW START]')
+    .replace(/\{\{\s*window_end\s*\}\}/g,   w.end   || '[WINDOW END]')
+    .replace(/\{\{\s*window\s*\}\}/g,       w.full  || '[DATE/TIME UTC]');
+  tokens.forEach(tok => {
+    const val = (fieldVals[tok] || '').trim() || `[${tok.toUpperCase()}]`;
+    out = out.replace(new RegExp(`\\{\\{\\s*${tok}\\s*\\}\\}`, 'g'), val);
+  });
+  return out;
+}
+
+// ── TEMPLATE RENDER (main panel) ──────────────────────────────────────────────
+function loadTemplate() {
+  const tmpl = findTemplate(document.getElementById('tmplSel').value);
+  if (!tmpl) return;
+
+  const tokens = extractFieldTokens(tmplText(tmpl));
+  const container = document.getElementById('tmplFields');
+  container.innerHTML = '';
+  tokens.forEach(tok => {
+    const hasLink = !!(fieldLinks[tok] && fieldLinks[tok].trim());
+    container.insertAdjacentHTML('beforeend', `
+      <div class="fg" style="margin-bottom:0">
+        <label class="field-label">
+          ${esc(prettyLabel(tok))}
+          <button type="button" class="link-toggle ${hasLink?'on':''}" id="lkbtn_${tok}"
+                  onclick="toggleFieldLink('${tok}')" title="Make this a clickable link">🔗</button>
+        </label>
+        <input type="text" id="tf_${tok}" placeholder="${esc(prettyLabel(tok))}…"
+               value="${esc(fieldVals[tok]||'')}" oninput="renderTemplate()">
+        <input type="text" class="link-input ${hasLink?'':'hidden'}" id="lk_${tok}"
+               placeholder="https://…  (use {} where the value goes)"
+               value="${esc(fieldLinks[tok]||'')}" oninput="renderTemplate()">
+      </div>`);
+  });
+
+  const usesWindow = /\{\{\s*window(_start|_end)?\s*\}\}/.test(tmplText(tmpl));
+  document.getElementById('mwNote').classList.toggle('show', usesWindow && !lastUTC);
+
+  renderTemplate();
+}
+
+function windowStrings() {
+  let start = '', end = '', full = '';
+  if (lastUTC) {
+    const u = fmtUTC(lastUTC);
+    start = `${u.weekday}, ${u.date} ${u.time}`;
+    full = start;
+    if (lastUTCend) {
+      const e = fmtUTC(lastUTCend);
+      const sameDay =
+        lastUTC.getUTCFullYear() === lastUTCend.getUTCFullYear() &&
+        lastUTC.getUTCMonth()    === lastUTCend.getUTCMonth() &&
+        lastUTC.getUTCDate()     === lastUTCend.getUTCDate();
+      // Same UTC date -> show only the end time, otherwise the full weekday+date.
+      end = sameDay ? e.time : `${e.weekday}, ${e.date} ${e.time}`;
+      full = `${start} - ${end}`;
+    }
+  }
+  return { start, end, full };
+}
+
+function toggleFieldLink(tok) {
+  const inp = document.getElementById(`lk_${tok}`);
+  const btn = document.getElementById(`lkbtn_${tok}`);
+  const show = inp.classList.contains('hidden');
+  inp.classList.toggle('hidden', !show);
+  if (show) inp.focus();
+  else { inp.value = ''; fieldLinks[tok] = ''; btn.classList.remove('on'); renderTemplate(); }
+}
+
+// Build the URL for a field: if it contains {}, substitute the value, else append.
+function buildFieldUrl(url, val) {
+  url = url.trim();
+  if (!url) return '';
+  return url.includes('{}') ? url.replace(/\{\}/g, encodeURIComponent(val)) : url;
+}
+
+function renderTemplate() {
+  const tmpl = findTemplate(document.getElementById('tmplSel').value);
+  if (!tmpl) return;
+
+  const tokens = extractFieldTokens(tmplText(tmpl));
+  tokens.forEach(tok => {
+    const el = document.getElementById(`tf_${tok}`);
+    if (el) fieldVals[tok] = el.value;
+    const lk = document.getElementById(`lk_${tok}`);
+    if (lk) fieldLinks[tok] = lk.value;
+    const btn = document.getElementById(`lkbtn_${tok}`);
+    if (btn) btn.classList.toggle('on', !!(fieldLinks[tok] && fieldLinks[tok].trim()));
+  });
+
+  const w = windowStrings();
+  const winStart = w.start || '[WINDOW START - convert time first]';
+  const winEnd   = w.end   || '[WINDOW END]';
+  const winFull  = w.full  || '[DATE/TIME UTC - convert time first]';
+
+  // Plain-text version (for the preview + plain clipboard)
+  let out = tmpl.body
+    .replace(/\{\{\s*window_start\s*\}\}/g, winStart)
+    .replace(/\{\{\s*window_end\s*\}\}/g,   winEnd)
+    .replace(/\{\{\s*window\s*\}\}/g,       winFull);
+
+  // HTML version (for rich clipboard — keeps field text, adds hyperlinks)
+  let html = esc(tmpl.body)
+    .replace(/\{\{\s*window_start\s*\}\}/g, esc(winStart))
+    .replace(/\{\{\s*window_end\s*\}\}/g,   esc(winEnd))
+    .replace(/\{\{\s*window\s*\}\}/g,       esc(winFull));
+
+  let anyLink = false;
+  tokens.forEach(tok => {
+    const val = (fieldVals[tok] || '').trim() || `[${tok.toUpperCase()}]`;
+    const re  = new RegExp(`\\{\\{\\s*${tok}\\s*\\}\\}`, 'g');
+    out = out.replace(re, val);
+
+    const url = buildFieldUrl(fieldLinks[tok] || '', val);
+    if (url) {
+      anyLink = true;
+      html = html.replace(re, `<a href="${esc(url)}" target="_blank" rel="noopener">${esc(val)}</a>`);
+    } else {
+      html = html.replace(re, esc(val));
+    }
+  });
+
+  document.getElementById('tmplOut').innerHTML = html;
+  lastTmplText = out;
+  lastTmplHtml = anyLink ? `<div style="white-space:pre-wrap;">${html}</div>` : '';
+
+  // Subject line (event name)
+  const subjRow = document.getElementById('subjectRow');
+  if (tmpl.subject && tmpl.subject.trim()) {
+    document.getElementById('subjOut').value = fillPlain(tmpl.subject, tokens);
+    subjRow.style.display = 'block';
+  } else {
+    subjRow.style.display = 'none';
+  }
+}
+
+function copySubject() {
+  navigator.clipboard.writeText(document.getElementById('subjOut').value).then(() => {
+    const el = document.getElementById('subjCopyOk');
+    el.classList.add('show'); setTimeout(() => el.classList.remove('show'), 1800);
+  });
+}
+
+// ── TEMPLATE EDITOR ───────────────────────────────────────────────────────────
+function openTmplEditor() {
+  document.getElementById('tmplOverlay').classList.add('open');
+  document.getElementById('tmplModal').classList.add('open');
+  renderTmplList();
+  if (TEMPLATES.length) selectTemplateForEdit(editingId && findTemplate(editingId) ? editingId : TEMPLATES[0].id);
+  else showEditForm(false);
+}
+function closeTmplEditor() {
+  document.getElementById('tmplOverlay').classList.remove('open');
+  document.getElementById('tmplModal').classList.remove('open');
+}
+function showEditForm(on) {
+  document.getElementById('tmplEditForm').style.display  = on ? 'block' : 'none';
+  document.getElementById('tmplEditEmpty').style.display = on ? 'none'  : 'block';
+}
+
+function renderTmplList() {
+  const el = document.getElementById('tmplList');
+  el.innerHTML = '';
+  TEMPLATES.forEach(t =>
+    el.insertAdjacentHTML('beforeend',
+      `<div class="tmpl-list-item ${t.id===editingId?'active':''}" onclick="selectTemplateForEdit('${t.id}')">${esc(t.label)}</div>`));
+}
+
+function selectTemplateForEdit(id) {
+  const t = findTemplate(id);
+  if (!t) return;
+  editingId = id;
+  document.getElementById('edName').value = t.label;
+  document.getElementById('edSubject').value = t.subject || '';
+  document.getElementById('edBody').value = t.body;
+  showEditForm(true);
+  renderTmplList();
+  updateTokenChips();
+  // Keep the last delete template available (don't allow deleting to zero handled in deleteTemplate)
+}
+
+function newTemplate() {
+  const id = 'tpl_' + Date.now();
+  TEMPLATES.push({ id, label: 'New Template', subject: '', body:
+`Dear colleagues,
+
+[Your message here]
+
+Best Regards,` });
+  saveTemplatesToStore();
+  rebuildTmplSelect();
+  selectTemplateForEdit(id);
+}
+
+function saveTemplate() {
+  const t = findTemplate(editingId);
+  if (!t) return;
+  const name = document.getElementById('edName').value.trim() || 'Untitled';
+  t.label   = name;
+  t.subject = document.getElementById('edSubject').value;
+  t.body    = document.getElementById('edBody').value;
+  saveTemplatesToStore();
+  rebuildTmplSelect();
+  renderTmplList();
+  loadTemplate();              // refresh main panel if this one is selected
+  const ok = document.getElementById('saveOk');
+  ok.classList.add('show'); setTimeout(() => ok.classList.remove('show'), 1800);
+}
+
+function deleteTemplate() {
+  if (TEMPLATES.length <= 1) { alert('Keep at least one template.'); return; }
+  const t = findTemplate(editingId);
+  if (!t) return;
+  if (!confirm(`Delete template "${t.label}"?`)) return;
+  TEMPLATES = TEMPLATES.filter(x => x.id !== editingId);
+  saveTemplatesToStore();
+  editingId = TEMPLATES[0].id;
+  rebuildTmplSelect();
+  loadTemplate();
+  renderTmplList();
+  selectTemplateForEdit(editingId);
+}
+
+function insertToken(tok) {
+  const ta = document.getElementById('edBody');
+  const ins = `{{${tok}}}`;
+  const s = ta.selectionStart, e = ta.selectionEnd;
+  ta.value = ta.value.slice(0, s) + ins + ta.value.slice(e);
+  ta.focus();
+  ta.selectionStart = ta.selectionEnd = s + ins.length;
+  updateTokenChips();
+}
+
+function updateTokenChips() {
+  const combined = document.getElementById('edSubject').value + '\n' + document.getElementById('edBody').value;
+  const toks = extractFieldTokens(combined);
+  const el = document.getElementById('tokenDetected');
+  if (!toks.length) {
+    el.innerHTML = 'No input fields detected. Add e.g. <span class="fldtok">{{tenant}}</span> to create one.';
+  } else {
+    el.innerHTML = '<b>Input fields:</b> ' +
+      toks.map(t => `<span class="fldtok">{{${esc(t)}}}</span>`).join(', ');
+  }
+}
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c =>
+    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function copyTmpl() {
+  const text = lastTmplText;
+
+  // If any field is a link, copy rich HTML so the link survives the paste into Outlook.
+  if (lastTmplHtml && window.ClipboardItem && navigator.clipboard?.write) {
+    const item = new ClipboardItem({
+      'text/html':  new Blob([lastTmplHtml], { type: 'text/html' }),
+      'text/plain': new Blob([text],         { type: 'text/plain' })
+    });
+    navigator.clipboard.write([item]).then(showCopyOk).catch(() => {
+      navigator.clipboard.writeText(text).then(showCopyOk);
+    });
+    return;
+  }
+
+  navigator.clipboard.writeText(text).then(showCopyOk);
+}
+
+function showCopyOk() {
+  const el = document.getElementById('copyOk');
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2000);
+}
+
+// ── SIDEBAR ───────────────────────────────────────────────────────────────────
+function openSidebar()  {
+  document.getElementById('sidebar').classList.add('open');
+  document.getElementById('overlay').classList.add('open');
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('overlay').classList.remove('open');
+}
+
+function renderSidebar() { renderActive(); renderAll(); }
+
+function renderActive() {
+  const el = document.getElementById('activeTzList');
+  el.innerHTML = activeAbbrs.length ? '' : '<div class="sb-hint">No active timezones.</div>';
+  activeAbbrs.forEach(abbr => {
+    const tz = ALL_TZ.find(t => t.abbr === abbr);
+    if (!tz) return;
+    el.insertAdjacentHTML('beforeend', `
+      <div class="tz-item">
+        <div class="tz-info">
+          <div class="tz-abbr">${tz.abbr}</div>
+          <div class="tz-name">${tz.name}</div>
+        </div>
+        <span class="tz-offset">${fmtOff(tz.off)}</span>
+        <button class="btn-remove" onclick="removeTz('${abbr}')">✕ Remove</button>
+      </div>`);
+  });
+  document.getElementById('activeBadge').textContent = activeAbbrs.length;
+}
+
+function renderAll(q='') {
+  const el = document.getElementById('allTzList');
+  const lq = q.toLowerCase();
+  const list = ALL_TZ
+    .filter(tz => !activeAbbrs.includes(tz.abbr))
+    .filter(tz => !lq || tz.abbr.toLowerCase().includes(lq) || tz.name.toLowerCase().includes(lq));
+  el.innerHTML = list.length ? '' : '<div class="sb-hint">No timezones found.</div>';
+  list.forEach(tz => {
+    el.insertAdjacentHTML('beforeend', `
+      <div class="tz-item">
+        <div class="tz-info">
+          <div class="tz-abbr">${tz.abbr}</div>
+          <div class="tz-name">${tz.name}</div>
+        </div>
+        <span class="tz-offset">${fmtOff(tz.off)}</span>
+        <button class="btn-add-tz" onclick="addTz('${tz.abbr}')">+ Add</button>
+      </div>`);
+  });
+}
+
+function filterAll() { renderAll(document.getElementById('tzSearch').value); }
+
+function addTz(abbr) {
+  if (!activeAbbrs.includes(abbr)) {
+    activeAbbrs.push(abbr);
+    save(); renderSidebar(); rebuildTzSelect();
+  }
+}
+function removeTz(abbr) {
+  activeAbbrs = activeAbbrs.filter(a => a !== abbr);
+  save(); renderSidebar(); rebuildTzSelect();
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+function fmtOff(min) {
+  const sign = min >= 0 ? '+' : '-';
+  const abs  = Math.abs(min);
+  const h    = Math.floor(abs/60);
+  const m    = abs % 60;
+  return `UTC${sign}${h}${m ? ':'+String(m).padStart(2,'0') : ''}`;
+}
+
+// ── THEME ─────────────────────────────────────────────────────────────────────
+function toggleTheme() {
+  const cur = document.documentElement.getAttribute('data-theme');
+  applyTheme(cur === 'dark' ? 'light' : 'dark');
+}
+function applyTheme(t) {
+  document.documentElement.setAttribute('data-theme', t);
+  document.getElementById('themeBtn').textContent = t === 'dark' ? '🪐' : '🌞';
+  localStorage.setItem('tz_theme', t);
+}
+
+// ── PERSIST ───────────────────────────────────────────────────────────────────
+function save()     { localStorage.setItem('tz_active', JSON.stringify(activeAbbrs)); }
+function loadPrefs(){ const s = localStorage.getItem('tz_active'); if (s) activeAbbrs = JSON.parse(s); }
+
+// ── START ─────────────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
