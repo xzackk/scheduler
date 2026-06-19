@@ -4,7 +4,9 @@ services:
     container_name: scheduler
     restart: unless-stopped
     ports:
-      - "3005:8080"
-
+      - "3005:3005"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./index.html:/usr/share/nginx/html/index.html:ro
     labels:
       - "wud.watch=true"
