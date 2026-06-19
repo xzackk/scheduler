@@ -1,0 +1,27 @@
+# k3s ships Traefik by default. Adjust host + TLS to your setup.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: scheduler
+  labels:
+    app: scheduler
+  annotations:
+    # Uncomment if you use cert-manager for automatic TLS:
+    # cert-manager.io/cluster-issuer: letsencrypt-prod
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+spec:
+  rules:
+    - host: scheduler.CHANGE_ME.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: scheduler
+                port:
+                  number: 80
+  # tls:
+  #   - hosts:
+  #       - scheduler.CHANGE_ME.example.com
+  #     secretName: scheduler-tls
