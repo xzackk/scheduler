@@ -103,6 +103,15 @@ header {
 .logo { font-size: 1.05rem; font-weight: 700; color: var(--accent); letter-spacing: -0.02em; display: flex; align-items: center; gap: 8px; }
 .logo span { font-size: 1.2em; }
 .logo-icon { width: 22px; height: 22px; flex-shrink: 0; }
+.app-footer {
+  max-width: 1280px; margin: 0 auto; padding: 18px 20px 28px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  justify-content: center; text-align: center;
+  font-size: 0.78rem; color: var(--muted);
+}
+.app-footer .dot { opacity: 0.6; }
+.app-footer a { color: var(--accent); text-decoration: none; }
+.app-footer a:hover { text-decoration: underline; }
 .hright { display: flex; gap: 8px; align-items: center; }
 
 /* ── BUTTONS ────────────────────────────────────────────── */
@@ -539,6 +548,14 @@ textarea.tmpl-ta:focus { outline: none; border-color: var(--accent); }
   </div>
 
 </main>
+
+<footer class="app-footer">
+  <span>MIT License</span>
+  <span class="dot">·</span>
+  <span>Found a bug or have a request?
+    <a href="https://github.com/xzackk/scheduler/issues" target="_blank" rel="noopener">Open an issue on GitHub ↗</a>
+  </span>
+</footer>
 
 <!-- Sidebar -->
 <aside id="sidebar">
