@@ -1,4 +1,4 @@
-# 🌍 TZ Event Scheduler
+# 🌍 XZ. Event Scheduler
 
 A tiny self-hosted tool for scheduling client events across timezones. Enter a
 client-provided date/time/zone, convert it to **Sofia time** and **UTC**, and
