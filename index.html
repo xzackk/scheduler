@@ -390,7 +390,16 @@ textarea.tmpl-ta:focus { outline: none; border-color: var(--accent); }
 .tm-list-col {
   border-right: 1px solid var(--border); padding: 16px;
   overflow-y: auto; background: var(--sidebar-bg);
+  display: flex; flex-direction: column;
 }
+.tm-storage-note {
+  margin-top: auto; padding: 11px 12px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 9px; font-size: 0.72rem; line-height: 1.5;
+  color: var(--muted);
+}
+.tm-storage-note strong { display: block; color: var(--text); margin-bottom: 4px; font-weight: 600; }
+.tm-storage-note code { font-family: Consolas, monospace; font-size: 0.9em; color: var(--accent); }
 .tm-edit-col { padding: 20px 22px; overflow-y: auto; }
 .tmpl-list-item {
   padding: 10px 12px; border-radius: 8px; cursor: pointer;
@@ -611,6 +620,10 @@ textarea.tmpl-ta:focus { outline: none; border-color: var(--accent); }
     <div class="tm-list-col">
       <button class="btn btn-primary" style="width:100%;justify-content:center;margin-bottom:10px;" onclick="newTemplate()">＋ New template</button>
       <div id="tmplList"></div>
+      <div class="tm-storage-note">
+        <strong>📌 Stored in your browser</strong>
+        Templates are saved locally on this device (browser <code>localStorage</code>) — they're not synced to a server or shared with other users. They will be lost if you clear this site's browsing data, use private/incognito mode, or switch to a different browser or device.
+      </div>
     </div>
     <!-- Right: editor -->
     <div class="tm-edit-col">
