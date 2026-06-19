@@ -171,7 +171,10 @@ main {
 .panel-title {
   font-size: 0.95rem; font-weight: 700; margin-bottom: 20px;
   display: flex; align-items: center; gap: 8px; color: var(--text);
+  justify-content: space-between;
 }
+.panel-title > span { display: inline-flex; align-items: center; gap: 8px; }
+.panel-action { padding: 6px 12px; font-size: 0.8rem; }
 
 /* ── FORM ───────────────────────────────────────────────── */
 .fg { margin-bottom: 14px; }
@@ -450,8 +453,6 @@ textarea.tmpl-ta:focus { outline: none; border-color: var(--accent); }
   </div>
   <div class="header-clock" id="headerClock" title="Current Sofia time">—</div>
   <div class="hright">
-    <button class="btn btn-secondary" onclick="openTmplEditor()">📝 Templates</button>
-    <button class="btn btn-secondary" onclick="openSidebar()">⚙ Timezones</button>
     <button class="btn-icon" id="themeBtn" onclick="toggleTheme()" title="Toggle theme">🌖</button>
   </div>
 </header>
@@ -461,7 +462,10 @@ textarea.tmpl-ta:focus { outline: none; border-color: var(--accent); }
 
   <!-- LEFT: Converter -->
   <div class="panel">
-    <div class="panel-title">🕐 Time Converter</div>
+    <div class="panel-title">
+      <span>🕐 Time Converter</span>
+      <button class="btn btn-secondary panel-action" onclick="openSidebar()">⚙ Timezones</button>
+    </div>
 
     <div class="fg">
       <label>Date</label>
@@ -546,7 +550,10 @@ textarea.tmpl-ta:focus { outline: none; border-color: var(--accent); }
 
   <!-- RIGHT: Templates -->
   <div class="panel">
-    <div class="panel-title">📧 Email Template</div>
+    <div class="panel-title">
+      <span>📧 Email Template</span>
+      <button class="btn btn-secondary panel-action" onclick="openTmplEditor()">📝 Templates</button>
+    </div>
 
     <div class="fg">
       <label>Select Template</label>
