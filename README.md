@@ -1,5 +1,8 @@
 # 🌍 XZ. Event Scheduler
 
+[![Build & push image](https://github.com/xzackk/scheduler/actions/workflows/docker.yml/badge.svg)](https://github.com/xzackk/scheduler/actions/workflows/docker.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
 A tiny self-hosted tool for scheduling client events across timezones. Enter a
 client-provided date/time/zone, convert it to **Sofia time** and **UTC**, and
 generate a ready-to-paste Outlook event template.
@@ -89,6 +92,11 @@ scheduler/
 ├── .github/workflows/  # CI: build & push image to GHCR
 └── k8s/                # optional Kubernetes / k3s manifests
 ```
+
+## Contributing
+
+Pull requests welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the branch
+naming, commit, and PR conventions.
 
 ## License
 
