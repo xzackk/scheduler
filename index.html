@@ -309,6 +309,12 @@ textarea.tmpl-ta:focus { outline: none; border-color: var(--accent); }
   margin-top: 6px; display: none; align-items: center; gap: 4px;
 }
 .mw-note.show { display: flex; }
+.dst-note {
+  display: none; margin-bottom: 14px; padding: 10px 14px;
+  background: rgba(245,158,11,0.12); border: 1px solid var(--warn);
+  border-radius: 9px; font-size: 0.78rem; line-height: 1.5; color: var(--warn);
+}
+.dst-note.show { display: block; }
 
 /* ── SIDEBAR OVERLAY ────────────────────────────────────── */
 #overlay {
@@ -516,6 +522,7 @@ textarea.tmpl-ta:focus { outline: none; border-color: var(--accent); }
     </button>
 
     <div id="resultArea">
+      <div class="dst-note" id="dstNote"></div>
       <div class="res-section-label" id="startSecLabel" style="display:none;">▶ Window start</div>
       <div class="result-grid">
         <div class="rcard">
@@ -934,6 +941,99 @@ function rebuildTzSelect() {
   else if (activeAbbrs.includes('UTC')) sel.value = 'UTC';
 }
 
+// ── DST-AWARE ZONES (Option 1: IANA + Intl) ───────────────────────────────────
+// Each abbreviation pair maps to a real IANA zone, so the correct offset for the
+// entered date is computed automatically (and we can warn on a mismatch).
+const DST_ZONES = [
+  { iana:'America/New_York',    std:'EST',  dst:'EDT'  },
+  { iana:'America/Chicago',     std:'CST',  dst:'CDT'  },
+  { iana:'America/Denver',      std:'MST',  dst:'MDT'  },
+  { iana:'America/Los_Angeles', std:'PST',  dst:'PDT'  },
+  { iana:'America/Anchorage',   std:'AKST', dst:'AKDT' },
+  { iana:'America/Halifax',     std:'AST',  dst:'ADT'  },
+  { iana:'America/St_Johns',    std:'NST',  dst:'NDT'  },
+  { iana:'America/Santiago',    std:'CLT',  dst:'CLST' },
+  { iana:'Europe/Lisbon',       std:'WET',  dst:'WEST' },
+  { iana:'Europe/Paris',        std:'CET',  dst:'CEST' },
+  { iana:'Europe/Athens',       std:'EET',  dst:'EEST' },
+  { iana:'Australia/Sydney',    std:'AEST', dst:'AEDT' },
+  { iana:'Australia/Adelaide',  std:'ACST', dst:'ACDT' },
+  { iana:'Pacific/Auckland',    std:'NZST', dst:'NZDT' },
+];
+const DST_LOOKUP = {};
+DST_ZONES.forEach(z => { DST_LOOKUP[z.std] = z; DST_LOOKUP[z.dst] = z; });
+
+// Offset (minutes, east-positive) of an IANA zone at a given UTC instant.
+function tzOffsetMin(iana, date) {
+  const p = new Intl.DateTimeFormat('en-US', {
+    timeZone: iana, hour12: false,
+    year:'numeric', month:'2-digit', day:'2-digit',
+    hour:'2-digit', minute:'2-digit', second:'2-digit'
+  }).formatToParts(date);
+  const g = t => parseInt(p.find(x => x.type === t).value);
+  let h = g('hour'); if (h === 24) h = 0;
+  const asUTC = Date.UTC(g('year'), g('month')-1, g('day'), h, g('minute'), g('second'));
+  return Math.round((asUTC - date.getTime()) / 60_000);
+}
+
+// A wall-clock time *in a zone* -> the corresponding UTC Date.
+function zonedWallToUtc(iana, y, mo, d, h, min) {
+  const guess = Date.UTC(y, mo-1, d, h, min);
+  let off = tzOffsetMin(iana, new Date(guess));
+  let utc = guess - off * 60_000;
+  const off2 = tzOffsetMin(iana, new Date(utc));
+  if (off2 !== off) utc = guess - off2 * 60_000;
+  return new Date(utc);
+}
+
+// Calendar date in a zone, e.g. "Mar 8, 2026".
+function fmtZoneDate(iana, date) {
+  const p = new Intl.DateTimeFormat('en-US', {
+    timeZone: iana, year:'numeric', month:'short', day:'numeric'
+  }).formatToParts(date);
+  const g = t => p.find(x => x.type === t).value;
+  return `${g('month')} ${g('day')}, ${g('year')}`;
+}
+
+// Start/end calendar dates of the contiguous offset period containing `date`.
+function offsetPeriodRange(iana, date) {
+  const off = tzOffsetMin(iana, date);
+  let start = date;
+  for (let i = 0; i < 400; i++) {
+    const prev = new Date(start.getTime() - 86400000);
+    if (tzOffsetMin(iana, prev) !== off) break;
+    start = prev;
+  }
+  let end = date;
+  for (let i = 0; i < 400; i++) {
+    const next = new Date(end.getTime() + 86400000);
+    if (tzOffsetMin(iana, next) !== off) break;
+    end = next;
+  }
+  return { from: fmtZoneDate(iana, start), to: fmtZoneDate(iana, end) };
+}
+
+// Resolve a wall time for the selected zone -> { utcDate, srcOff, activeAbbr, warn }
+function resolveZone(abbr, tz, y, mo, d, hour, min) {
+  const info = DST_LOOKUP[abbr];
+  if (!info) {
+    const utcDate = new Date(Date.UTC(y, mo-1, d, hour, min) - tz.off * 60_000);
+    return { utcDate, srcOff: tz.off, activeAbbr: abbr, warn: '' };
+  }
+  const utcDate = zonedWallToUtc(info.iana, y, mo, d, hour, min);
+  const srcOff  = tzOffsetMin(info.iana, utcDate);
+  const dstOff  = (ALL_TZ.find(t => t.abbr === info.dst) || {}).off;
+  const activeAbbr = (srcOff === dstOff) ? info.dst : info.std;
+  let warn = '';
+  if (activeAbbr !== abbr) {
+    const r = offsetPeriodRange(info.iana, utcDate);
+    const kind = (activeAbbr === info.dst) ? 'Daylight saving time' : 'Standard time';
+    warn = `⚠ On this date, ${abbr} is observing ${activeAbbr} (${fmtOff(srcOff)}). `
+         + `${kind} runs ${r.from} → ${r.to}. The conversion uses ${activeAbbr}.`;
+  }
+  return { utcDate, srcOff, activeAbbr, warn };
+}
+
 // ── CONVERT ───────────────────────────────────────────────────────────────────
 function convert() {
   const d  = parseInt(document.getElementById('daySel').value);
@@ -952,11 +1052,15 @@ function convert() {
   const tz = ALL_TZ.find(t => t.abbr === abbr);
   if (!tz) return;
 
-  // UTC ms = "local" clock treated as that tz's offset
-  const localMs = Date.UTC(y, mo-1, d, hour, min, 0, 0);
-  const utcMs   = localMs - tz.off * 60_000;
-  const utcDate = new Date(utcMs);
+  // DST-aware resolution (IANA zones); falls back to fixed offset for non-DST zones
+  const res = resolveZone(abbr, tz, y, mo, d, hour, min);
+  const utcDate = res.utcDate;
   lastUTC = utcDate;
+
+  // DST mismatch warning
+  const dstNote = document.getElementById('dstNote');
+  if (res.warn) { dstNote.textContent = res.warn; dstNote.classList.add('show'); }
+  else { dstNote.classList.remove('show'); }
 
   // Sofia via Intl
   const sofia = fmtInTz(utcDate, 'Europe/Sofia');
@@ -964,13 +1068,13 @@ function convert() {
 
   // Diff text
   const sofiaOff = getSofiaOff(utcDate);
-  const diffMin  = sofiaOff - tz.off;
+  const diffMin  = sofiaOff - res.srcOff;
   const absDiff  = Math.abs(diffMin);
   const dh = Math.floor(absDiff/60);
   const dm = absDiff % 60;
   const dStr = `${dh}h${dm ? ' '+dm+'m' : ''}`;
   const dir = diffMin >= 0 ? 'ahead of' : 'behind';
-  document.getElementById('diffBar').textContent = `⏱ Sofia is ${dStr} ${dir} ${abbr}`;
+  document.getElementById('diffBar').textContent = `⏱ Sofia is ${dStr} ${dir} ${res.activeAbbr}`;
 
   document.getElementById('sofiaTime').textContent = sofia.time;
   document.getElementById('sofiaDate').textContent = sofia.weekday + ', ' + sofia.date;
@@ -992,7 +1096,7 @@ function convert() {
     if (eper === 'PM' && ehour !== 12) ehour += 12;
 
     // Same calendar date as the start; if the end clock is earlier, roll to next day
-    let endUtcDate = new Date(Date.UTC(y, mo-1, d, ehour, emin) - tz.off * 60_000);
+    let endUtcDate = resolveZone(abbr, tz, y, mo, d, ehour, emin).utcDate;
     let rolledOver = false;
     if (endUtcDate <= utcDate) {
       endUtcDate = new Date(endUtcDate.getTime() + 24*60*60*1000);
