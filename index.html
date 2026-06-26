@@ -309,6 +309,13 @@ textarea.tmpl-ta:focus { outline: none; border-color: var(--accent); }
   margin-top: 6px; display: none; align-items: center; gap: 4px;
 }
 .mw-note.show { display: flex; }
+.time-label { display: flex !important; align-items: center; justify-content: space-between; }
+.min-step-btn {
+  background: none; border: none; cursor: pointer; font-family: inherit;
+  font-size: 0.68rem; font-weight: 600; text-transform: none; letter-spacing: 0;
+  color: var(--accent); padding: 2px 6px; border-radius: 6px; transition: background var(--t);
+}
+.min-step-btn:hover { background: var(--tag); }
 .dst-note {
   display: none; margin-bottom: 14px; padding: 10px 14px;
   background: rgba(245,158,11,0.12); border: 1px solid var(--warn);
@@ -486,7 +493,10 @@ textarea.tmpl-ta:focus { outline: none; border-color: var(--accent); }
     </div>
 
     <div class="fg">
-      <label>Time &amp; Timezone (window start)</label>
+      <label class="time-label">
+        <span>Time &amp; Timezone (window start)</span>
+        <button type="button" class="min-step-btn" id="minStepBtn" onclick="toggleMinuteStep()" title="Toggle minute precision">precise mins</button>
+      </label>
       <div class="time-row">
         <select id="tzSel"></select>
         <select id="hourSel"></select>
@@ -841,10 +851,8 @@ function init() {
     hs.insertAdjacentHTML('beforeend', `<option value="${h}">${pad(h)}</option>`);
   hs.value = '7';
 
-  // Minutes 00-59
-  const ms = document.getElementById('minSel');
-  for (let m = 0; m < 60; m++)
-    ms.insertAdjacentHTML('beforeend', `<option value="${m}">${pad(m)}</option>`);
+  // Minutes — default 10-min steps (toggle to precise)
+  buildMinutes(document.getElementById('minSel'), 0);
 
   // ── Window-end time dropdowns (optional; same date as start) ──
   const eh = document.getElementById('endHourSel');
@@ -852,9 +860,7 @@ function init() {
     eh.insertAdjacentHTML('beforeend', `<option value="${h}">${pad(h)}</option>`);
   eh.value = '11';
 
-  const em = document.getElementById('endMinSel');
-  for (let m = 0; m < 60; m++)
-    em.insertAdjacentHTML('beforeend', `<option value="${m}">${pad(m)}</option>`);
+  buildMinutes(document.getElementById('endMinSel'), 0);
 
   // Templates
   loadTemplatesFromStore();
@@ -883,6 +889,26 @@ function updateHeaderClock() {
   let h = parseInt(g('hour')); if (h === 24) h = 0;
   document.getElementById('headerClock').textContent =
     `${to12h(h, parseInt(g('minute')))} · ${g('weekday')} · ${g('month')}/${g('day')}/${g('year')}`;
+}
+
+// ── MINUTE DROPDOWNS (10-min steps by default, toggle to precise) ─────────────
+let minuteStep = 10;
+function buildMinutes(sel, keep) {
+  const pad = n => String(n).padStart(2,'0');
+  const cur = (keep != null) ? keep : (parseInt(sel.value) || 0);
+  const mins = new Set();
+  for (let m = 0; m < 60; m += minuteStep) mins.add(m);
+  mins.add(cur);  // never lose the current selection
+  sel.innerHTML = '';
+  [...mins].sort((a,b) => a-b).forEach(m =>
+    sel.insertAdjacentHTML('beforeend', `<option value="${m}">${pad(m)}</option>`));
+  sel.value = cur;
+}
+function toggleMinuteStep() {
+  minuteStep = (minuteStep === 10) ? 1 : 10;
+  buildMinutes(document.getElementById('minSel'));
+  buildMinutes(document.getElementById('endMinSel'));
+  document.getElementById('minStepBtn').textContent = (minuteStep === 10) ? 'precise mins' : '10-min steps';
 }
 
 // ── DAY DROPDOWN (real calendar + weekday) ────────────────────────────────────
