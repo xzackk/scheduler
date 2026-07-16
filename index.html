@@ -1373,7 +1373,9 @@ function renderTemplate() {
 
   document.getElementById('tmplOut').innerHTML = html;
   lastTmplText = out;
-  lastTmplHtml = anyLink ? `<div style="white-space:pre-wrap;">${html}</div>` : '';
+  // Rich clipboard: real <br> line breaks so pasted text keeps its layout
+  // in Teams/Outlook (HTML collapses raw newlines).
+  lastTmplHtml = `<div>${html.replace(/\n/g, '<br>')}</div>`;
 
   // Subject line (event name)
   const subjRow = document.getElementById('subjectRow');
@@ -1502,7 +1504,8 @@ function esc(s) {
 function copyTmpl() {
   const text = lastTmplText;
 
-  // If any field is a link, copy rich HTML so the link survives the paste into Outlook.
+  // Copy rich HTML (with <br> line breaks) so the layout survives paste into
+  // Teams/Outlook, plus a plain-text fallback for plain editors.
   if (lastTmplHtml && window.ClipboardItem && navigator.clipboard?.write) {
     const item = new ClipboardItem({
       'text/html':  new Blob([lastTmplHtml], { type: 'text/html' }),
